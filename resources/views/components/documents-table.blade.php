@@ -17,8 +17,24 @@
         <tr>
             <td>{{ $item->id }}</td>
             <td>{{ $item->priority }}</td>
-            <td>{{ $item->flag }}</td>
-            <td>{{ $item->status }}</td>
+            <td>
+                @if ($item->flag == 0)
+                    انتصاب داده نشده   
+                @else
+                    انتصاب داده شده
+                @endif
+            </td>
+            <td>
+                @if ($item->status == 0)
+                    حالت پایه
+                @elseif ($item->status == 1)
+                    ثبت شده
+                @elseif ($item->status == 2)
+                    بررسی شده
+                @elseif ($item->status == 3)
+                    انصراف
+                @endif
+            </td>
             <td>{{ $item->user_id }}</td>
             <td>{{ $item->expired_at }}</td>
             <td>{{ $item->created_at }}</td>
