@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document Appointment</title>
+    <title>Document Assignment</title>
     <link rel="stylesheet" href="{{ asset('bootstrap/dist/css/bootstrap.min.css')}}">
     @yield('style')
 </head>

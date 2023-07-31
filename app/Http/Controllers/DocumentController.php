@@ -2,63 +2,76 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Document;
-use App\Http\Requests\StoreDocumentRequest;
-use App\Http\Requests\UpdateDocumentRequest;
 use Carbon\Carbon;
-
-
+use App\Models\User;
+use Illuminate\Http\Request;
+use App\Interfaces\DocumentRepositoryInterface;
 
 class DocumentController extends Controller
 {
+    private DocumentRepositoryInterface $documentRepository;
+    public function __construct(DocumentRepositoryInterface $documentRepository)
+    {
+        $this->documentRepository = $documentRepository;
+        
+    }
 
+    // get list of all documents
     public function index() {
-
-        $documents = Document::all();
+        $documents =  $this->documentRepository->getAllDocuments();
         $users = User::all();
-        return view('document_list', compact('documents', 'users'));
+        return view('admin_home', compact('documents', 'users'));
     }
 
-    public function show($id) {
-
-        $document = Document::where('id', $id)->get(['content']);
-        $document = $document[0]['content'];
-        return view('document_view', compact('document'));
+    // get assigned documents
+    public function getAssignedDocuments () {
+        $documents = $this->documentRepository->getAssignedDocuments();
+        return view('assigned_list', compact('documents'));
     }
+
+    // get each document data
+    public function documentView ($userId, $id) {
+        $document = $this->documentRepository->getDocumentById($id);
+        if ($document->user_id == $userId || $document->user_id == 0 ) {
+            return view('document_view', compact('document'));
+        } else {
+            abort(403);
+        }
+    }
+
 
     // assign document to users in ( 3 doc per each user )
     public function assignDocument($userId) {
 
-        $unassigned_docs = Document::where('flag', 0)->orderBy('priority', 'DESC')
-            ->orderBy('created_at', 'ASC')->get(['id'])->toArray();
+        $unassigned_docs = $this->documentRepository->getUnassignedDocumentIds()->toArray();
 
         $docs_batch = array_slice($unassigned_docs, 0, 3, true);
 
-        $expired_at = Carbon::now()->addDays(-2);
+        $expired_at = Carbon::now()->addDays(-3);
 
         foreach ($docs_batch as $item) {
-            Document::where('id', $item['id'])->update([
+            $newData = [
                 'user_id' => $userId,
                 'flag' => 1,
                 'expired_at' => $expired_at
-            ]);
+            ];
+
+            $this->documentRepository->updateDocument($item['id'], $newData);
         }
+
         return redirect()->back();
     }
 
+   
     // Check for Expiration
-    public function checkExpiration () {
-        $documents = Document::all();
+    public function checkExpiration () 
+    {
+        $documents = $this->documentRepository->getAllDocuments();
         $today = Carbon::now();
 
         foreach($documents as $item) {
-            if(( $item->expire_at < $today ) && ( $item->status == 0 )) {
-                Document::where('id', $item->id)->update([
-                    'user_id' => null,
-                    'flag' => 0,
-                    'expired_at' => null
-                ]);
+            if(( $item->expired_at < $today ) && ($item->flag == 1) && ($item->status == 0)) {
+                $this->documentRepository->clearExpiredAssignment($item->id);
             }
         }
 
@@ -66,50 +79,30 @@ class DocumentController extends Controller
     }
 
     // clear all assignments
-    public function clearAssignments() {
-        Document::where('flag', 1)->update([
-            'user_id' => null,
-            'flag' => 0,
-            'expired_at' => null
-        ]);
+    public function clearAssignments() 
+    {
+        $this->documentRepository->clearAssignment();
         return redirect()->back();
     }
 
 
-
-
-
-
-
-
-    public function create()
-    {
-        //
+    // get user assignments
+    public function getUserAssignment ($userId) {
+        $documents = $this->documentRepository->getUserAssignments( $userId);
+        return view('user_panel', compact('documents'));
     }
 
 
-    public function store(StoreDocumentRequest $request)
-    {
-        //
+    // update document status
+    public function updateDocumentStatus (Request $request, $id)  {
+        $document = $this->documentRepository->getDocumentById($id);
+        $newData = [
+            'status' => $request->status
+        ];
+        $this->documentRepository->updateDocument($id, $newData);
+
+        return redirect()->route('getUserAssignment', $document->user_id );
     }
 
 
-
-
-    public function edit(Document $document)
-    {
-        //
-    }
-
-
-    public function update(UpdateDocumentRequest $request, Document $document)
-    {
-        //
-    }
-
-
-    public function destroy(Document $document)
-    {
-        //
-    }
 }
